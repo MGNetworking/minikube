@@ -80,7 +80,7 @@ Avant d'utiliser les scripts fournis (`setup-minikube.ps1`, `start-minikube.ps1`
 
 ### Installation des prérequis avec Chocolatey
 
-Vous pouvez installer ces outils à l'aide de Chocolatey, un gestionnaire de paquets pour Windows. Si Chocolatey n'est pas installé, exécutez d'abord (en tant qu'administrateur) :
+Vous pouvez installer ces outils à l'aide de Chocolatey, un gestionnaire de paquets pour Windows. Si Chocolatey安全的n'est pas installé, exécutez d'abord (en tant qu'administrateur) :
 
 ```powershell
 Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
@@ -153,19 +153,23 @@ Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All
 
 ### 2. `start-minikube.ps1`
 
-**Objectif** : Démarre la VM Minikube et met à jour le fichier `hosts` avec l'IP actuelle.
+**Objectif** : Démarre la VM Minikube et gère l'entrée `nutrition.local gateway.local` dans le fichier `hosts` pour qu'elle soit correcte et unique.
 
 **Fonctionnement** :
 
 - **Vérification des privilèges** : S'assure que le script est exécuté en tant qu'administrateur.
 - **État de la VM** : Vérifie si la VM Minikube est déjà en cours d'exécution.
 - **Démarrage** : Si la VM n'est pas en cours, démarre Minikube avec le driver Hyper-V et le commutateur `MinikubeSwitch`.
-- **IP et fichier hosts** : Récupère l'IP de Minikube et met à jour ou ajoute une entrée dans le fichier `hosts` pour `nutrition.local` et `gateway.local`.
+- **IP et fichier hosts** : Récupère l'IP de Minikube et vérifie le fichier `hosts`. 
+  - Si l'entrée `nutrition.local gateway.local` est absente, elle est ajoutée avec l'IP actuelle.
+  - Si l'entrée existe mais l'IP ou les noms de domaine sont incorrects, elle est mise à jour.
+  - Si l'entrée est correcte, aucune modification n'est effectuée pour éviter les doublons.
+- **Encodage et robustesse** : Utilise l'encodage ASCII pour écrire dans le fichier `hosts` et inclut un mécanisme de réessai en cas de verrouillage du fichier.
 
 **Conditions d'utilisation** :
 
 - Utilisez ce script pour **démarrer Minikube** après l'avoir configuré avec `setup-minikube.ps1`.
-- Exécutez-le si la VM est arrêtée ou si l'IP a changé et doit être mise à jour dans `hosts`.
+- Exécutez-le pour démarrer la VM ou pour corriger l'entrée `hosts` si elle est absente ou incorrecte (par exemple, après un redémarrage du PC).
 
 **Exemple d'exécution** :
 
@@ -175,19 +179,19 @@ Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All
 
 ### 3. `stop-minikube.ps1`
 
-**Objectif** : Arrête la VM Minikube et supprime l'entrée correspondante du fichier `hosts`.
+**Objectif** : Arrête la VM Minikube sans modifier le fichier `hosts`.
 
 **Fonctionnement** :
 
 - **Vérification des privilèges** : S'assure que le script est exécuté en tant qu'administrateur.
 - **État de la VM** : Vérifie si la VM Minikube est en cours d'exécution.
 - **Arrêt** : Si la VM est en cours, arrête Minikube.
-- **Nettoyage du fichier hosts** : Supprime l'entrée correspondant à `nutrition.local` et `gateway.local` dans le fichier `hosts`.
 
 **Conditions d'utilisation** :
 
 - Utilisez ce script pour **arrêter Minikube** lorsque vous n'en avez plus besoin.
 - Exécutez-le pour libérer des ressources système ou avant de supprimer la VM avec `remove.ps1`.
+- Notez que l'entrée `nutrition.local gateway.local` dans le fichier `hosts` est conservée pour une utilisation ultérieure.
 
 **Exemple d'exécution** :
 
@@ -212,7 +216,7 @@ Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All
 **Conditions d'utilisation** :
 
 - Utilisez ce script pour **supprimer définitivement** Minikube et toutes ses ressources, par exemple pour libérer de l'espace disque ou résoudre des problèmes graves.
-- Exécutez `stop-minikube.ps1` avant si vous souhaitez nettoyer le fichier `hosts` au préalable.
+- Exécutez `stop-minikube.ps1` avant si vous souhaitez arrêter proprement la VM.
 - **Attention** : Cette action est irréversible et supprime toutes les données associées à la VM Minikube.
 
 **Exemple d'exécution** :
@@ -239,8 +243,8 @@ Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All
 **Tâches disponibles** :
 
 - `task setup` : Exécute `setup-minikube.ps1` pour configurer ou réinitialiser Minikube.
-- `task start` : Exécute `start-minikube.ps1` pour démarrer Minikube et mettre à jour le fichier `hosts`.
-- `task stop` : Exécute `stop-minikube.ps1` pour arrêter Minikube et nettoyer le fichier `hosts`.
+- `task start` : Exécute `start-minikube.ps1` pour démarrer Minikube et gérer l'entrée `hosts`.
+- `task stop` : Exécute `stop-minikube.ps1` pour arrêter Minikube.
 - `task delete` : Exécute `remove.ps1` pour supprimer la VM Minikube.
 
 **Exemple d'exécution** :
@@ -259,13 +263,13 @@ task delete
 | Script/Tâche                        | Quand l'utiliser                                                             |
 | ----------------------------------- | ---------------------------------------------------------------------------- |
 | `setup-minikube.ps1` / `task setup` | Pour une première installation ou une réinitialisation complète de Minikube avec Hyper-V, incluant la configuration réseau et les addons. |
-| `start-minikube.ps1` / `task start` | Pour démarrer Minikube et mettre à jour le fichier `hosts`.                  |
-| `stop-minikube.ps1` / `task stop`   | Pour arrêter Minikube et nettoyer le fichier `hosts`.                        |
+| `start-minikube.ps1` / `task start` | Pour démarrer Minikube et ajouter ou corriger l'entrée `nutrition.local gateway.local` dans le fichier `hosts` si nécessaire. |
+| `stop-minikube.ps1` / `task stop`   | Pour arrêter Minikube sans modifier le fichier `hosts`.                      |
 | `remove.ps1` / `task delete`        | Pour supprimer définitivement Minikube, ses configurations, et les ressources Hyper-V associées. |
 
 ## Conseils supplémentaires
 
 - **Exécution en administrateur** : Ouvrez PowerShell en mode administrateur (`Clic droit > Exécuter en tant qu'administrateur`) avant d'exécuter les scripts ou les commandes `task`.
 - **Dépannage** : Si un script ou une tâche échoue, consultez les journaux Minikube avec `minikube logs --file=logs.txt`.
-- **Fichier hosts** : Les scripts modifient `C:\Windows\System32\drivers\etc\hosts`. Assurez-vous qu'aucun autre processus ne verrouille ce fichier.
+- **Fichier hosts** : Les scripts `setup-minikube.ps1` et `start-minikube.ps1` modifient `C:\Windows\System32\drivers\etc\hosts`. Assurez-vous qu'aucun autre processus ne verrouille ce fichier. Si le fichier `hosts` est réinitialisé après un redémarrage, exécutez `task start` pour restaurer l'entrée correcte.
 - **Ressources** : Minikube est configuré avec 4 CPU, 8 Go de RAM et 40 Go de disque. Ajustez ces valeurs dans `setup-minikube.ps1` si nécessaire.
