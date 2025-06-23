@@ -1,0 +1,40 @@
+version: '3'
+
+tasks:
+  setup:
+    desc: "Configure Minikube dans Hyper-V (setup)"
+    cmds:
+      - powershell -ExecutionPolicy Bypass -File setup-minikube.ps1
+    platforms: [windows]
+
+  start:
+    desc: "Démarre la VM Minikube"
+    cmds:
+      - powershell -ExecutionPolicy Bypass -File start-minikube.ps1
+    platforms: [windows]
+
+  stop:
+    desc: "Stoppe la VM Minikube"
+    cmds:
+      - powershell -ExecutionPolicy Bypass -File stop-minikube.ps1
+    platforms: [windows]
+
+  delete:
+    desc: "Supprime complètement la VM Minikube"
+    cmds:
+      - powershell -ExecutionPolicy Bypass -File remove.ps1
+    platforms: [windows]
+
+  reset:
+    desc: "Stoppe, supprime, puis réinstalle la VM Minikube"
+    cmds:
+      - task: stop
+      - task: delete
+      - task: setup
+      - task: start
+    platforms: [windows]
+
+  list:
+    desc: "Liste toutes les tâches disponibles"
+    cmds:
+      - task --list
