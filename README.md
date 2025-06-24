@@ -9,6 +9,7 @@
   - [Avantages de l'approche locale](#avantages-de-lapproche-locale)
   - [Rôle de Task](#rôle-de-task)
 - [Préambule : Prérequis](#préambule--prérequis)
+  - [Rôle et installation de `kubectl`](#rôle-et-installation-de-kubectl)
   - [Installation des prérequis avec Chocolatey](#installation-des-prérequis-avec-chocolatey)
   - [Vérification des prérequis](#vérification-des-prérequis)
 - [Description des scripts](#description-des-scripts)
@@ -78,9 +79,43 @@ Avant d'utiliser les scripts fournis (`setup-minikube.ps1`, `start-minikube.ps1`
 - **Hyper-V** : Activé sur Windows pour la virtualisation.
 - **Task** : Un outil pour exécuter des tâches définies dans `taskfile.yaml`, permettant d'automatiser l'exécution des scripts.
 
+### Rôle et installation de `kubectl`
+
+**`kubectl`** est l'outil en ligne de commande qui sert de client pour interagir avec un cluster Kubernetes, y compris celui créé par Minikube. Il permet d'exécuter des commandes pour gérer les ressources du cluster, comme déployer des applications, inspecter les pods, ou vérifier l'état des nœuds. Contrairement à Minikube, qui gère le cluster Kubernetes dans une machine virtuelle (VM) Hyper-V, `kubectl` est installé **sur la machine hôte** (votre PC Windows) et communique avec le cluster via son API.
+
+- **Pourquoi installer `kubectl` ?** : `kubectl` est nécessaire pour toutes les opérations de gestion du cluster, telles que `kubectl get pods`, `kubectl apply -f`, ou `kubectl logs`. Sans `kubectl`, vous ne pouvez pas interagir directement avec les ressources Kubernetes créées par Minikube.
+- **Installation** : `kubectl` doit être installé manuellement sur la machine hôte, idéalement via Chocolatey (voir la section suivante). Une fois installé via Chocolatey, l'exécutable `kubectl` se trouve généralement dans `C:\ProgramData\chocolatey\bin\kubectl.exe` et est ajouté au `PATH` système, ce qui permet de l'exécuter depuis n'importe quel terminal PowerShell.
+- **Configuration automatique par Minikube** : Lors de l'exécution de `minikube start` (par exemple, via `setup-minikube.ps1` ou `start-minikube.ps1`), Minikube configure automatiquement le fichier `kubeconfig`, situé dans `%USERPROFILE%\.kube\config`. Ce fichier contient :
+  - L'URL du serveur API Kubernetes (par exemple, `https://192.168.1.29:8443` pour Minikube).
+  - Les certificats nécessaires pour l'authentification.
+  - Le contexte `minikube`, qui indique à `kubectl` quel cluster utiliser.
+    Cette configuration permet à `kubectl` de se connecter au cluster Minikube sans configuration manuelle supplémentaire.
+- **Vérification** : Après l'installation, vérifiez que `kubectl` est fonctionnel avec :
+  ```powershell
+  kubectl version --client
+  ```
+  Une fois Minikube démarré, testez la connexion au cluster avec :
+  ```powershell
+  kubectl get nodes
+  ```
+
+**Note** : Assurez-vous que `kubectl` est installé avant d'exécuter des commandes pour interagir avec le cluster. Minikube ne l'installe pas automatiquement, mais il configure le fichier `kubeconfig` pour que `kubectl` puisse communiquer avec le cluster.
+
+### Prochaines étapes
+
+- Si tu veux que je regenère le `README.md` complet avec des ajustements ou que je modifie cette section spécifique (par exemple, ajouter des détails ou changer le style), fais-le-moi savoir.
+- Si tu rencontres des problèmes avec `kubectl` ou Minikube (comme les erreurs précédentes `IP not found` ou `dial tcp [::1]:8080`), partage les résultats des commandes suivantes pour que je puisse t'aider à déboguer :
+
+  ```powershell
+  kubectl version --client
+  minikube ip
+  Get-Content $env:USERPROFILE\.kube\config
+  minikube logs --file=logs.txt
+  ```
+
 ### Installation des prérequis avec Chocolatey
 
-Vous pouvez installer ces outils à l'aide de Chocolatey, un gestionnaire de paquets pour Windows. Si Chocolatey安全的n'est pas installé, exécutez d'abord (en tant qu'administrateur) :
+Vous pouvez installer ces outils à l'aide de Chocolatey, un gestionnaire de paquets pour Windows. Si Chocolatey 安全的 n'est pas installé, exécutez d'abord (en tant qu'administrateur) :
 
 ```powershell
 Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
@@ -160,7 +195,7 @@ Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All
 - **Vérification des privilèges** : S'assure que le script est exécuté en tant qu'administrateur.
 - **État de la VM** : Vérifie si la VM Minikube est déjà en cours d'exécution.
 - **Démarrage** : Si la VM n'est pas en cours, démarre Minikube avec le driver Hyper-V et le commutateur `MinikubeSwitch`.
-- **IP et fichier hosts** : Récupère l'IP de Minikube et vérifie le fichier `hosts`. 
+- **IP et fichier hosts** : Récupère l'IP de Minikube et vérifie le fichier `hosts`.
   - Si l'entrée `nutrition.local gateway.local` est absente, elle est ajoutée avec l'IP actuelle.
   - Si l'entrée existe mais l'IP ou les noms de domaine sont incorrects, elle est mise à jour.
   - Si l'entrée est correcte, aucune modification n'est effectuée pour éviter les doublons.
@@ -260,12 +295,12 @@ task delete
 
 ## Résumé des cas d'utilisation
 
-| Script/Tâche                        | Quand l'utiliser                                                             |
-| ----------------------------------- | ---------------------------------------------------------------------------- |
+| Script/Tâche                        | Quand l'utiliser                                                                                                                          |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `setup-minikube.ps1` / `task setup` | Pour une première installation ou une réinitialisation complète de Minikube avec Hyper-V, incluant la configuration réseau et les addons. |
-| `start-minikube.ps1` / `task start` | Pour démarrer Minikube et ajouter ou corriger l'entrée `nutrition.local gateway.local` dans le fichier `hosts` si nécessaire. |
-| `stop-minikube.ps1` / `task stop`   | Pour arrêter Minikube sans modifier le fichier `hosts`.                      |
-| `remove.ps1` / `task delete`        | Pour supprimer définitivement Minikube, ses configurations, et les ressources Hyper-V associées. |
+| `start-minikube.ps1` / `task start` | Pour démarrer Minikube et ajouter ou corriger l'entrée `nutrition.local gateway.local` dans le fichier `hosts` si nécessaire.             |
+| `stop-minikube.ps1` / `task stop`   | Pour arrêter Minikube sans modifier le fichier `hosts`.                                                                                   |
+| `remove.ps1` / `task delete`        | Pour supprimer définitivement Minikube, ses configurations, et les ressources Hyper-V associées.                                          |
 
 ## Conseils supplémentaires
 
